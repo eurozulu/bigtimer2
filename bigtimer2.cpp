@@ -11,8 +11,8 @@ void BigTimer2::startTimerFrequency(uint16_t hz) {
   uint16_t prescaler = 0;
   uint16_t count = 0;
 
-  uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50%
-  
+  uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50% = 1 full count
+
   // Find the smallest prescaler.
   for (int i = 0; i < PRESCALER_COUNT; i++) {
     uint32_t c = CLOCK_SPEED / (dblHz * PRESCALERS[i]) - 1;
@@ -65,6 +65,7 @@ void BigTimer2::resetTimer() {
   TCCR2B = 0; // same for TCCR2B
   TCNT2  = 0; // initialize counter value to 0
   TIMSK2 = 0; // switch off inturrupt masks.
+  TIFR2  = 0; // Clear all the flags;
   sei();
 }
 

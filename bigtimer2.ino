@@ -1,17 +1,13 @@
 #include "bigtimer2.h"
 
-void setup() {
-  Serial.begin(38400);
 
-  pinMode(PIN_A, OUTPUT);
-  //pinMode(PIN_B, OUTPUT);
+void setFrequency(uint16_t hz) {
+  Serial.print("Setting frequency to ");
+  Serial.print(hz);
+  Serial.println(" hz");
+  BigTimer.startTimerFrequency(hz);
 
-  Serial.println("Starting frequency generator on Timer2");
-  Serial.println("Send 'f' followed by a frequency, in hz to serial to start timer");
 }
-
-
-
 
 int parseSerial(char cBuf[], int sz) {
   int len = 0;
@@ -27,6 +23,22 @@ int parseSerial(char cBuf[], int sz) {
   return len;
 }
 
+void setup() {
+  Serial.begin(38400);
+
+  pinMode(PIN_A, OUTPUT); // Set Pin register to OUTPUT so Timer can control it.
+  //pinMode(PIN_B, OUTPUT);
+
+  Serial.println("Starting frequency generator on Timer2");
+  Serial.println("Send 'f' followed by a frequency, in hz, to serial to change the timer frequency.");
+  Serial.println("e.g. f1000 will set to pulse at 1 khz.  f2 will pulse at 2 hz");
+
+  setFrequency(1);
+}
+
+
+// Note, Timer itself does nothing in the main loop as it's all hardware driven.
+// Code here is simply to read Serial and control the frequency.
 void loop() {
 
   // If serial has something to say, go see what it is
@@ -38,13 +50,10 @@ void loop() {
 
     switch (buf[0]) {
       case 'f' :
-        char *s = &buf[1];
-        int hz = atoi(s);
-        Serial.print("Setting frequency to ");
-        Serial.println(hz);
-        BigTimer.startTimerFrequency((uint16_t)hz);
+        int hz = atoi(&buf[1]); // Grab string following 'f' command adn flip to number. zero if NAN.
+        setFrequency((uint16_t) hz);
         break;
-        
+
       default:
         Serial.print(&buf[1]);
         Serial.print(" is an unknown command");
