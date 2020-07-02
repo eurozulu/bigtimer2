@@ -10,7 +10,6 @@ const int PIN_B = 3;
 
 // 16mz cpu clock speed
 #define CLOCK_SPEED 16000000
-#define DEFAULT_PULSE_DUTY 0.4f;
 
 #define PRESCALER_COUNT 7     // The number of prescalers available to this timer
 const uint16_t PRESCALERS[PRESCALER_COUNT] {1, 8, 32, 64, 128, 256, 1024};
