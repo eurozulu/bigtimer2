@@ -1,12 +1,12 @@
 #include "bigtimer2.h"
 
+BigTimer2 *bigTimer = new BigTimer2();
 
 void setFrequency(uint16_t hz) {
   Serial.print("Setting frequency to ");
   Serial.print(hz);
   Serial.println(" hz");
-  BigTimer.startTimerFrequency(hz);
-
+  bigTimer->startTimerFrequency(hz);
 }
 
 int parseSerial(char cBuf[], int sz) {
@@ -25,9 +25,6 @@ int parseSerial(char cBuf[], int sz) {
 
 void setup() {
   Serial.begin(38400);
-
-  pinMode(PIN_A, OUTPUT); // Set Pin register to OUTPUT so Timer can control it.
-  //pinMode(PIN_B, OUTPUT);
 
   Serial.println("Starting frequency generator on Timer2");
   Serial.println("Send 'f' followed by a frequency, in hz, to serial to change the timer frequency.");
@@ -60,4 +57,14 @@ void loop() {
         Serial.println();
     }
   }
+}
+
+
+
+ISR(TIMER2_COMPA_vect) {
+  bigTimer->CompareMatchA();
+}
+
+ISR(TIMER2_OVF_vect) {
+  bigTimer->Overflow();
 }

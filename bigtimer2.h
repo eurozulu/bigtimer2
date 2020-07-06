@@ -19,18 +19,19 @@ class BigTimer2 {
   private:
     uint8_t overflow;
 
-    uint8_t OCR2AH; // high byte of OCR2A
+    uint8_t OCR2AH;
     void setTimerPrescaler(uint16_t scaler);
   
   public:
     BigTimer2(){};
-      
+
+          uint8_t OV() { return overflow;};
+          
     void startTimerFrequency(uint16_t hz);
     void startTimer(uint16_t count, uint16_t prescaler);
     void resetTimer();
 
     void Overflow();
+    void CompareMatchA();
 
 };
-
-static BigTimer2 BigTimer;

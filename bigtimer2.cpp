@@ -5,24 +5,22 @@
 // Helper to start timer with a given frequency.
 // Calculates a 16-bit counter and prescaler to achive this frequency
 void BigTimer2::startTimerFrequency(uint16_t hz) {
-  if (hz == 0) {
-    return;
-  }
   uint16_t prescaler = 0;
   uint16_t count = 0;
 
-  uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50% = 1 full count
+  if (hz > 0) {
+    uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50% = 1 full count
 
-  // Find the smallest prescaler.
-  for (int i = 0; i < PRESCALER_COUNT; i++) {
-    uint32_t c = CLOCK_SPEED / (dblHz * PRESCALERS[i]) - 1;
-    if (c > 0xFFFF || c < 1)
-      continue;
-    prescaler = PRESCALERS[i];
-    count = (uint16_t) c;
-    break;
+    // Find the smallest prescaler.
+    for (int i = 0; i < PRESCALER_COUNT; i++) {
+      uint32_t c = CLOCK_SPEED / (dblHz * PRESCALERS[i]) - 1;
+      if (c > 0xFFFF || c < 1)
+        continue;
+      prescaler = PRESCALERS[i];
+      count = (uint16_t) c;
+      break;
+    }
   }
-
   startTimer(count, prescaler);
 }
 
@@ -35,19 +33,21 @@ void BigTimer2::startTimer(uint16_t count, uint16_t prescaler) {
 
   cli();
 
-  // Split count into two bytes
-  OCR2AH = (uint8_t)(count >> 8);
-  OCR2A = (uint8_t)(count & 0x00FF); // COM2A Timer2 Registry
+  OCR2AH = count >> 8;
+  OCR2A = count & 0x00FF;
 
-  // wave gen mode 0, all WGM22:20 zeros
-  TCCR2A &= (0 << WGM21) | (0 << WGM20);
+  // wave gen mode 0, Top = Max
+  TCCR2A &= (0 << WGM20);
+  TCCR2A &= (0 << WGM21);
   TCCR2B &= (0 << WGM22);
 
+  TCCR2A &= (0 << COM2A1) | (0 << COM2A0); //  Turn off compare match pins until high byte matches overflow
+
   //set the output pin DDR to output
-  //DDRB |= DDR_OC2A;
+  DDRB |= (1 << DDB3);
 
   // enable overflow inturrupt.
-  TIMSK2 |= (1 << TOIE2);
+  TIMSK2 |= (1 << TOIE2) | (1 << OCIE2A);
 
   // Turn on the timer.
   setTimerPrescaler(prescaler);
@@ -70,21 +70,21 @@ void BigTimer2::resetTimer() {
 }
 
 
+void BigTimer2::CompareMatchA() {
+
+  if (overflow != OCR2AH) {  // High byte compare match
+    return;
+  }
+  
+  PORTB ^= (1 << PB3);   // toggles the state of the bit
+  overflow = 0;
+  TCNT2 = 0;
+}
+
+
 // Called by the ISR for overflow on Timer2
 void BigTimer2::Overflow() {
   overflow++;
-
-  if (overflow == OCR2AH) {  // High byte compare match, we turn toggle the match pin state
-    // Toggle current COM2A1:0 state so each match sets pin HIGH or LOW
-    // B00 = no action, B01 = Toggle state, B10 = Clear state, B11 = Set state
-    if (TCCR2A & (1 << COM2A0)) {
-      TCCR2A &= (0 << COM2A0);
-    } else {
-      TCCR2A |= (1 << COM2A0);
-    }
-    overflow = 0;
-  }
-
 }
 
 // Set CS22-CS20 bits in TCCR2B for PRESCALER
@@ -123,10 +123,4 @@ void BigTimer2::setTimerPrescaler(uint16_t scaler) {
       TCCR2B &= (0 << CS21);
       TCCR2B &= (0 << CS20);
   }
-}
-
-//ISR(TIMER2_COMPA_vect) {}
-
-ISR(TIMER2_OVF_vect) {
-  BigTimer.Overflow();
 }
