@@ -2,20 +2,28 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+uint16_t BigTimer2::Frequency() {
+  uint16_t c = ((OCR2AH << 8) + OCR2A);
+  uint32_t cp = ( ((uint32_t)c * 2) * prescaler());
+  return cp > 0 ? (double)CLOCK_SPEED / cp : 0;
+}
+
+
 // Helper to start timer with a given frequency.
 // Calculates a 16-bit counter and prescaler to achive this frequency
 void BigTimer2::startTimerFrequency(uint16_t hz) {
   uint16_t prescaler = 0;
   uint16_t count = 0;
 
-  if (hz > 0) {
-    uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50% = 1 full count
+  uint16_t dblHz = hz * 2; // double the frequency as duty cycle uses 50% = 1 full count
+  if (hz > 0 && hz < dblHz) { // Check its not zero or wrapped
 
     // Find the smallest prescaler.
     for (int i = 0; i < PRESCALER_COUNT; i++) {
       uint32_t c = CLOCK_SPEED / (dblHz * PRESCALERS[i]) - 1;
       if (c > 0xFFFF || c < 1)
         continue;
+      
       prescaler = PRESCALERS[i];
       count = (uint16_t) c;
       break;
@@ -27,14 +35,14 @@ void BigTimer2::startTimerFrequency(uint16_t hz) {
 // start the timer using the given 16-bit timer count and prescaler
 void BigTimer2::startTimer(uint16_t count, uint16_t prescaler) {
   resetTimer();
+  OCR2AH = (count >> 8);
+  OCR2A = count & 0x00FF;
+
   if (prescaler == 0 || count == 0) {
     return;
   }
 
   cli();
-
-  OCR2AH = count >> 8;
-  OCR2A = count & 0x00FF;
 
   // wave gen mode 0, Top = Max
   TCCR2A &= (0 << WGM20);
@@ -50,7 +58,7 @@ void BigTimer2::startTimer(uint16_t count, uint16_t prescaler) {
   TIMSK2 |= (1 << TOIE2) | (1 << OCIE2A);
 
   // Turn on the timer.
-  setTimerPrescaler(prescaler);
+  setPrescaler(prescaler);
 
   sei();
 }
@@ -75,7 +83,7 @@ void BigTimer2::CompareMatchA() {
   if (overflow != OCR2AH) {  // High byte compare match
     return;
   }
-  
+
   PORTB ^= (1 << PB3);   // toggles the state of the bit
   overflow = 0;
   TCNT2 = 0;
@@ -87,8 +95,14 @@ void BigTimer2::Overflow() {
   overflow++;
 }
 
+
+uint16_t BigTimer2::prescaler() {
+  int index = TCCR2B & ((1 << CS22) | (1 << CS21) | (1 << CS20));
+  return index >= 0 && index < PRESCALER_COUNT ? PRESCALERS[index] : 0;
+}
+
 // Set CS22-CS20 bits in TCCR2B for PRESCALER
-void BigTimer2::setTimerPrescaler(uint16_t scaler) {
+void BigTimer2::setPrescaler(uint16_t scaler) {
   switch (scaler) {
     case 1 :
       TCCR2B |= (1 << CS20);
